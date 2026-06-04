@@ -1,20 +1,50 @@
-
-name: Automated Quality Check
+name: Automated CI-CD Pipeline
 
 on:
   push:
     branches: [ main ]
 
 jobs:
+  # --- CI integration---
   verify-and-build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Check out repo code
         uses: actions/checkout@v4
 
-
       - name: Build Docker Image
         run: docker build -t cloud-app .
 
-      - name: Run Docker Container Check
-        run: docker run cloud-app
+      - name: Run App and Extract Result Artifact
+        run: docker run --name active-container cloud-app
+
+      - name: Copy result out of container
+        run: docker cp active-container:/workspace/result.txt ./result.txt
+
+      - name: Temporarily Save Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: execution-result
+          path: result.txt
+
+  # --- cd deployment---
+  deploy-to-production:
+    needs: verify-and-build 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Result from Build Phase
+        uses: actions/download-artifact@v4
+        with:
+          name: execution-result
+
+      - name: Deploy Release Build to Live Environment
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Production Release v1.0.${{ github.run_number }}
+          body: "Automated CD Deployment: Calculation results published successfully."
+          files: result.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
