@@ -1,0 +1,20 @@
+
+name: Automated Quality Check
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo code
+        uses: actions/checkout@v4
+
+
+      - name: Build Docker Image
+        run: docker build -t cloud-app .
+
+      - name: Run Docker Container Check
+        run: docker run cloud-app
